@@ -24,7 +24,7 @@ def playMatchesBetweenVersions(env, run_version, player1version, player2version,
 
     if player2version == -1:
         player2 = User('player2', env.state_size, env.action_size)
-    else:
+    else:z
         player2_NN = Residual_CNN(config.REG_CONST, config.LEARNING_RATE, env.input_shape,   env.action_size, config.HIDDEN_CNN_LAYERS)
         
         if player2version > 0:
