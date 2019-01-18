@@ -105,6 +105,10 @@ class Gen_Model():
 				
 		lg.logger_model.info('------------------')
 
+	def convertToModelInput(self, state):
+		inputToModel =  state.binary #np.append(state.binary, [(state.playerTurn + 1)/2] * self.input_dim[1] * self.input_dim[2])
+		inputToModel = np.reshape(inputToModel, self.input_dim) 
+		return (inputToModel)
 
 class Residual_CNN(Gen_Model):
 	def __init__(self, reg_const, learning_rate, input_dim,  output_dim, hidden_layers):
@@ -239,7 +243,40 @@ class Residual_CNN(Gen_Model):
 
 		return model
 
-	def convertToModelInput(self, state):
-		inputToModel =  state.binary #np.append(state.binary, [(state.playerTurn + 1)/2] * self.input_dim[1] * self.input_dim[2])
-		inputToModel = np.reshape(inputToModel, self.input_dim) 
-		return (inputToModel)
+
+class KSchool_Model(Gen_Model):
+  def __init__(self, reg_const, learning_rate, input_dim, output_dim):
+    self.reg_const = reg_const
+    self.learning_rate = learning_rate
+    self.input_dim = input_dim
+    self.output_dim = output_dim
+    self.model = self.build_model()
+    Gen_Model.__init__(self, reg_const, learning_rate, input_dim, output_dim)
+
+  def build_model(self):
+    main_input = Input(shape=self.input_dim, name='main_input')
+    x = Dense(256, activation='relu')(main_input)
+    x = Dense(128, activation='relu')(x)
+
+    value = Dense(64, activation='linear', kernel_regularizer=regularizers.l2(self.reg_const))(x)
+    value = BatchNormalization(axis=1)(value)
+    value = LeakyReLU()(value)
+    value = Flatten()(value)
+    value = Dense(20, use_bias=False, activation='linear', kernel_regularizer=regularizers.l2(self.reg_const))(value)
+    value = LeakyReLU()(value)
+    value = Dense(1, use_bias=False, activation='linear', kernel_regularizer=regularizers.l2(self.reg_const), name='value_head')(value)
+    
+    policy = Dense(64, activation='linear', kernel_regularizer=regularizers.l2(self.reg_const))(x)
+    policy = BatchNormalization(axis=1)(policy)
+    policy = LeakyReLU()(policy)
+    policy = Flatten()(policy)
+    policy = Dense(self.output_dim, use_bias=False, activation='linear', kernel_regularizer=regularizers.l2(self.reg_const), name='policy_head')(policy)
+
+    model = Model(inputs=[main_input], outputs=[value, policy])
+    
+    model.compile(loss={'value_head': 'mean_squared_error', 'policy_head': softmax_cross_entropy_with_logits},
+		  optimizer=SGD(lr=self.learning_rate, momentum = config.MOMENTUM),	
+		  loss_weights={'value_head': 0.5, 'policy_head': 0.5}	
+    )
+
+    return model
