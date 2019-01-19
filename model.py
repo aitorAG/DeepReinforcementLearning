@@ -105,6 +105,50 @@ class Gen_Model():
 				
 		lg.logger_model.info('------------------')
 
+        
+class KSchool_Model(Gen_Model):
+        def __init__(self, reg_const, learning_rate, input_dim,  output_dim, hidden_layers):
+		Gen_Model.__init__(self, reg_const, learning_rate, input_dim, output_dim)
+		self.model = self._build_model()
+                self.input_dim = input_dim
+                self.output_dim = output_dim
+                self.reg_const = reg_const
+                self.learning_rate = learning_rate
+                self.model = self._build_model()
+
+        def _build_model(self):
+      		main_input = Input(shape = self.input_dim, name = 'main_input')
+
+                x = ....
+
+                vh = ....
+                
+                vh = Dense(1,
+                           use_bias=False,
+                           activation='tanh',
+                           kernel_regularizer=regularizers.l2(self.reg_const),
+                           name = 'value_head')(vh)
+
+                ph = ...
+                ph = Dense(
+			self.output_dim
+			, use_bias=False
+			, activation='linear'
+			, kernel_regularizer=regularizers.l2(self.reg_const)
+			, name = 'policy_head'
+			)(ph)
+
+
+		model = Model(inputs=[main_input], outputs=[vh, ph])
+		model.compile(loss={'value_head': 'mean_squared_error',
+                                    'policy_head': softmax_cross_entropy_with_logits},
+			optimizer=SGD(lr=self.learning_rate, momentum = config.MOMENTUM),	
+			loss_weights={'value_head': 0.5, 'policy_head': 0.5}	
+			)
+
+          
+    
+
 
 class Residual_CNN(Gen_Model):
 	def __init__(self, reg_const, learning_rate, input_dim,  output_dim, hidden_layers):
