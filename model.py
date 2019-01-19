@@ -118,13 +118,13 @@ class KSchool_Model(Gen_Model):
         def _build_model(self):
       		main_input = Input(shape = self.input_dim, name = 'main_input')
                 x = ....
-                vh = ....
+                vh = capas(x)
                 vh = Dense(1,
                            use_bias=False,
                            activation='tanh',
                            kernel_regularizer=regularizers.l2(self.reg_const),
                            name = 'value_head')(vh)
-                ph = ...
+                ph = capas(x)  # quizas otras capas diferentes a vh
                 ph = Dense(self.output_dim,
                            use_bias=False,
                            activation='linear',
@@ -135,8 +135,8 @@ class KSchool_Model(Gen_Model):
 		model = Model(inputs=[main_input], outputs=[vh, ph])
 		model.compile(loss={'value_head': 'mean_squared_error',
                                     'policy_head': softmax_cross_entropy_with_logits},
-			optimizer=SGD(lr=self.learning_rate, momentum = config.MOMENTUM),
-			loss_weights={'value_head': 0.5, 'policy_head': 0.5})
+			      optimizer=....,  # Adam, RMSprop, etc...
+			      loss_weights={'value_head': 0.5, 'policy_head': 0.5})
 
 
 class Residual_CNN(Gen_Model):
