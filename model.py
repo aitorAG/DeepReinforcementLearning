@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from keras.models import Sequential, load_model, Model
 from keras.layers import Input, Dense, Conv2D, Flatten, BatchNormalization, Activation, LeakyReLU, add
-from keras.optimizers import SGD
+from keras.optimizers import SGD, Adam
 from keras import regularizers
 
 from loss import softmax_cross_entropy_with_logits
@@ -104,40 +104,53 @@ class Gen_Model():
 			plt.show()
 				
 		lg.logger_model.info('------------------')
+	def convertToModelInput(self, state):
+		inputToModel =  state.binary #np.append(state.binary, [(state.playerTurn + 1)/2] * self.input_dim[1] * self.input_dim[2])
+		inputToModel = np.reshape(inputToModel, self.input_dim) 
+		return (inputToModel)
 
         
 class KSchool_Model(Gen_Model):
-        def __init__(self, reg_const, learning_rate, input_dim,  output_dim):
-		Gen_Model.__init__(self, reg_const, learning_rate, input_dim, output_dim)
-		self.model = self._build_model()
-                self.input_dim = input_dim
-                self.output_dim = output_dim
-                self.reg_const = reg_const
-                self.learning_rate = learning_rate
+  def __init__(self, reg_const, learning_rate, input_dim,  output_dim):
+    Gen_Model.__init__(self, reg_const, learning_rate, input_dim, output_dim)
+    self.model = self._build_model()
+    self.input_dim = input_dim
+    self.output_dim = output_dim
+    self.reg_const = reg_const
+    self.learning_rate = learning_rate
 
-        def _build_model(self):
-      		main_input = Input(shape = self.input_dim, name = 'main_input')
-                x = ....
-                vh = capas(x)
-                vh = Dense(1,
-                           use_bias=False,
-                           activation='tanh',
-                           kernel_regularizer=regularizers.l2(self.reg_const),
-                           name = 'value_head')(vh)
-                ph = capas(x)  # quizas otras capas diferentes a vh
-                ph = Dense(self.output_dim,
-                           use_bias=False,
-                           activation='linear',
-                           kernel_regularizer=regularizers.l2(self.reg_const),
-	                   name = 'policy_head'
-			)(ph)
+  def _build_model(self):
+    main_input = Input(shape = self.input_dim, name = 'main_input')
+    x = Dense(64)(main_input)
+    x = LeakyReLU()(x)
+    x = Dense(50)(x)
+    x = LeakyReLU()(x)
 
-		model = Model(inputs=[main_input], outputs=[vh, ph])
-		model.compile(loss={'value_head': 'mean_squared_error',
-                                    'policy_head': softmax_cross_entropy_with_logits},
-			      optimizer=....,  # Adam, RMSprop, etc...
-			      loss_weights={'value_head': 0.5, 'policy_head': 0.5})
+    vh = Dense(32)(x)
+    vh = LeakyReLU()(vh)
+    vh = BatchNormalization()(vh)
+    vh = Dense(16)(vh)
+    vh = LeakyReLU()(vh)
+    vh = Flatten()(vh)
+    vh = Dense(1,
+               use_bias=False,
+               activation='tanh',
+               kernel_regularizer=regularizers.l2(self.reg_const),
+               name = 'value_head')(vh)
+    ph = Flatten()(x)
+    ph = Dense(self.output_dim,
+               use_bias=False,
+               activation='linear',
+               kernel_regularizer=regularizers.l2(self.reg_const),
+	       name = 'policy_head')(ph)
 
+    model = Model(inputs=[main_input], outputs=[vh, ph])
+    model.compile(loss={'value_head': 'mean_squared_error',
+                        'policy_head': softmax_cross_entropy_with_logits},
+		  optimizer=Adam(),  # Adam, RMSprop, etc...
+		  loss_weights={'value_head': 0.5, 'policy_head': 0.5})
+    
+    return model
 
 class Residual_CNN(Gen_Model):
 	def __init__(self, reg_const, learning_rate, input_dim,  output_dim, hidden_layers):
@@ -272,7 +285,3 @@ class Residual_CNN(Gen_Model):
 
 		return model
 
-	def convertToModelInput(self, state):
-		inputToModel =  state.binary #np.append(state.binary, [(state.playerTurn + 1)/2] * self.input_dim[1] * self.input_dim[2])
-		inputToModel = np.reshape(inputToModel, self.input_dim) 
-		return (inputToModel)
