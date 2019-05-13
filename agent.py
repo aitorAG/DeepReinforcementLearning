@@ -1,11 +1,11 @@
-# %matplotlib inline
+"""An agent that knows how to play Connect-4."""
 
 import numpy as np
 import random
 
 import MCTS as mc
-from game import GameState
-from loss import softmax_cross_entropy_with_logits
+# from game import GameState
+# from loss import softmax_cross_entropy_with_logits
 
 import config
 import loggers as lg
@@ -17,117 +17,129 @@ import pylab as pl
 
 
 class User():
-	def __init__(self, name, state_size, action_size):
-		self.name = name
-		self.state_size = state_size
-		self.action_size = action_size
+  """An user that plays Connect-4 through an Agent."""
 
-	def act(self, state, tau):
-		action = input('Enter your chosen action: ')
-		pi = np.zeros(self.action_size)
-		pi[action] = 1
-		value = None
-		NN_value = None
-		return (action, pi, value, NN_value)
+  def __init__(self, name, state_size, action_size):
+    """Construct an User.
 
+    :param name: Name of the user
+    :param state_size: Number of possible states of the game.
+    :param action_size: Number of possible different actions in the game.
+    """
+    self.name = name
+    self.state_size = state_size
+    self.action_size = action_size
+
+    def act(self, state, tau):
+      action = input('Enter your chosen action: ')
+      pi = np.zeros(self.action_size)
+      pi[action] = 1
+      value = None
+      NN_value = None
+      return (action, pi, value, NN_value)
 
 
 class Agent():
-	def __init__(self, name, state_size, action_size, mcts_simulations, cpuct, model):
-		self.name = name
+  """An agent."""
+  def __init__(self,
+               name,
+               state_size,
+               action_size,
+               mcts_simulations,
+               cpuct,
+               model):
+    self.name = name
 
-		self.state_size = state_size
-		self.action_size = action_size
+    self.state_size = state_size
+    self.action_size = action_size
 
-		self.cpuct = cpuct
+    self.cpuct = cpuct
 
-		self.MCTSsimulations = mcts_simulations
-		self.model = model
+    self.MCTSsimulations = mcts_simulations
+    self.model = model
 
-		self.mcts = None
+    self.mcts = None
 
-		self.train_overall_loss = []
-		self.train_value_loss = []
-		self.train_policy_loss = []
-		self.val_overall_loss = []
-		self.val_value_loss = []
-		self.val_policy_loss = []
+    self.train_overall_loss = []
+    self.train_value_loss = []
+    self.train_policy_loss = []
+    self.val_overall_loss = []
+    self.val_value_loss = []
+    self.val_policy_loss = []
 
-	
-	def simulate(self):
+    def simulate(self):
+      lg.logger_mcts.info('ROOT NODE...%s', self.mcts.root.state.id)
+      self.mcts.root.state.render(lg.logger_mcts)
+      lg.logger_mcts.info(
+          'CURRENT PLAYER...%d',
+          self.mcts.root.state.playerTurn)
 
-		lg.logger_mcts.info('ROOT NODE...%s', self.mcts.root.state.id)
-		self.mcts.root.state.render(lg.logger_mcts)
-		lg.logger_mcts.info('CURRENT PLAYER...%d', self.mcts.root.state.playerTurn)
+      # MOVE THE LEAF NODE
+      leaf, value, done, breadcrumbs = self.mcts.moveToLeaf()
+      leaf.state.render(lg.logger_mcts)
 
-		##### MOVE THE LEAF NODE
-		leaf, value, done, breadcrumbs = self.mcts.moveToLeaf()
-		leaf.state.render(lg.logger_mcts)
+      # EVALUATE THE LEAF NODE
+      value, breadcrumbs = self.evaluateLeaf(leaf, value, done, breadcrumbs)
 
-		##### EVALUATE THE LEAF NODE
-		value, breadcrumbs = self.evaluateLeaf(leaf, value, done, breadcrumbs)
+      # BACKFILL THE VALUE THROUGH THE TREE
+      self.mcts.backFill(leaf, value, breadcrumbs)
 
-		##### BACKFILL THE VALUE THROUGH THE TREE
-		self.mcts.backFill(leaf, value, breadcrumbs)
+  def act(self, state, tau):
 
+    if self.mcts is None or state.id not in self.mcts.tree:
+      self.buildMCTS(state)
+    else:
+      self.changeRootMCTS(state)
 
-	def act(self, state, tau):
+    # run the simulation
+    for sim in range(self.MCTSsimulations):
+      lg.logger_mcts.info('***************************')
+      lg.logger_mcts.info('****** SIMULATION %d ******', sim + 1)
+      lg.logger_mcts.info('***************************')
+      self.simulate()
 
-		if self.mcts == None or state.id not in self.mcts.tree:
-			self.buildMCTS(state)
-		else:
-			self.changeRootMCTS(state)
+    # get action values
+    pi, values = self.getAV(1)
 
-		#### run the simulation
-		for sim in range(self.MCTSsimulations):
-			lg.logger_mcts.info('***************************')
-			lg.logger_mcts.info('****** SIMULATION %d ******', sim + 1)
-			lg.logger_mcts.info('***************************')
-			self.simulate()
+    # pick the action
+    action, value = self.chooseAction(pi, values, tau)
 
-		#### get action values
-		pi, values = self.getAV(1)
+    nextState, _, _ = state.takeAction(action)
 
-		####pick the action
-		action, value = self.chooseAction(pi, values, tau)
+    NN_value = -self.get_preds(nextState)[0]
 
-		nextState, _, _ = state.takeAction(action)
+    lg.logger_mcts.info('ACTION VALUES...%s', pi)
+    lg.logger_mcts.info('CHOSEN ACTION...%d', action)
+    lg.logger_mcts.info('MCTS PERCEIVED VALUE...%f', value)
+    lg.logger_mcts.info('NN PERCEIVED VALUE...%f', NN_value)
 
-		NN_value = -self.get_preds(nextState)[0]
+    return (action, pi, value, NN_value)
 
-		lg.logger_mcts.info('ACTION VALUES...%s', pi)
-		lg.logger_mcts.info('CHOSEN ACTION...%d', action)
-		lg.logger_mcts.info('MCTS PERCEIVED VALUE...%f', value)
-		lg.logger_mcts.info('NN PERCEIVED VALUE...%f', NN_value)
+  def get_preds(self, state):
+    # predict the leaf
+    inputToModel = np.array([self.model.convertToModelInput(state)])
 
-		return (action, pi, value, NN_value)
+    preds = self.model.predict(inputToModel)
+    value_array = preds[0]
+    logits_array = preds[1]
+    value = value_array[0]
 
+    logits = logits_array[0]
 
-	def get_preds(self, state):
-		#predict the leaf
-		inputToModel = np.array([self.model.convertToModelInput(state)])
+    allowedActions = state.allowedActions
 
-		preds = self.model.predict(inputToModel)
-		value_array = preds[0]
-		logits_array = preds[1]
-		value = value_array[0]
+    mask = np.ones(logits.shape, dtype=bool)
+    mask[allowedActions] = False
+    logits[mask] = -100
 
-		logits = logits_array[0]
+    # SOFTMAX
+    odds = np.exp(logits)
+    probs = odds / np.sum(odds)  # put this just before the for?
 
-		allowedActions = state.allowedActions
-
-		mask = np.ones(logits.shape,dtype=bool)
-		mask[allowedActions] = False
-		logits[mask] = -100
-
-		#SOFTMAX
-		odds = np.exp(logits)
-		probs = odds / np.sum(odds) ###put this just before the for?
-
-		return ((value, probs, allowedActions))
+    return ((value, probs, allowedActions))
 
 
-	def evaluateLeaf(self, leaf, value, done, breadcrumbs):
+  def evaluateLeaf(self, leaf, value, done, breadcrumbs):
 
 		lg.logger_mcts.info('------EVALUATING LEAF------')
 
