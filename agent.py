@@ -67,22 +67,22 @@ class Agent():
     self.val_value_loss = []
     self.val_policy_loss = []
 
-    def simulate(self):
-      lg.logger_mcts.info('ROOT NODE...%s', self.mcts.root.state.id)
-      self.mcts.root.state.render(lg.logger_mcts)
-      lg.logger_mcts.info(
-          'CURRENT PLAYER...%d',
-          self.mcts.root.state.playerTurn)
+  def simulate(self):
+    lg.logger_mcts.info('ROOT NODE...%s', self.mcts.root.state.id)
+    self.mcts.root.state.render(lg.logger_mcts)
+    lg.logger_mcts.info(
+        'CURRENT PLAYER...%d',
+        self.mcts.root.state.playerTurn)
 
-      # MOVE THE LEAF NODE
-      leaf, value, done, breadcrumbs = self.mcts.moveToLeaf()
-      leaf.state.render(lg.logger_mcts)
+    # MOVE THE LEAF NODE
+    leaf, value, done, breadcrumbs = self.mcts.moveToLeaf()
+    leaf.state.render(lg.logger_mcts)
 
-      # EVALUATE THE LEAF NODE
-      value, breadcrumbs = self.evaluateLeaf(leaf, value, done, breadcrumbs)
+    # EVALUATE THE LEAF NODE
+    value, breadcrumbs = self.evaluateLeaf(leaf, value, done, breadcrumbs)
 
-      # BACKFILL THE VALUE THROUGH THE TREE
-      self.mcts.backFill(leaf, value, breadcrumbs)
+    # BACKFILL THE VALUE THROUGH THE TREE
+    self.mcts.backFill(leaf, value, breadcrumbs)
 
   def act(self, state, tau):
 
@@ -138,51 +138,49 @@ class Agent():
 
     return ((value, probs, allowedActions))
 
-
   def evaluateLeaf(self, leaf, value, done, breadcrumbs):
 
-		lg.logger_mcts.info('------EVALUATING LEAF------')
+    lg.logger_mcts.info('------EVALUATING LEAF------')
 
-		if done == 0:
-	
-			value, probs, allowedActions = self.get_preds(leaf.state)
-			lg.logger_mcts.info('PREDICTED VALUE FOR %d: %f', leaf.state.playerTurn, value)
+    if done == 0:
 
-			probs = probs[allowedActions]
+      value, probs, allowedActions = self.get_preds(leaf.state)
+      lg.logger_mcts.info(
+          'PREDICTED VALUE FOR %d: %f',
+          leaf.state.playerTurn,
+          value)
 
-			for idx, action in enumerate(allowedActions):
-				newState, _, _ = leaf.state.takeAction(action)
-				if newState.id not in self.mcts.tree:
-					node = mc.Node(newState)
-					self.mcts.addNode(node)
-					lg.logger_mcts.info('added node...%s...p = %f', node.id, probs[idx])
-				else:
-					node = self.mcts.tree[newState.id]
-					lg.logger_mcts.info('existing node...%s...', node.id)
+      probs = probs[allowedActions]
 
-				newEdge = mc.Edge(leaf, node, probs[idx], action)
-				leaf.edges.append((action, newEdge))
-				
-		else:
-			lg.logger_mcts.info('GAME VALUE FOR %d: %f', leaf.playerTurn, value)
+      for idx, action in enumerate(allowedActions):
+        newState, _, _ = leaf.state.takeAction(action)
+        if newState.id not in self.mcts.tree:
+          node = mc.Node(newState)
+          self.mcts.addNode(node)
+          lg.logger_mcts.info('added node...%s...p = %f', node.id, probs[idx])
+        else:
+          node = self.mcts.tree[newState.id]
+          lg.logger_mcts.info('existing node...%s...', node.id)
+          newEdge = mc.Edge(leaf, node, probs[idx], action)
+          leaf.edges.append((action, newEdge))
+    else:
+      lg.logger_mcts.info('GAME VALUE FOR %d: %f', leaf.playerTurn, value)
 
-		return ((value, breadcrumbs))
+      return ((value, breadcrumbs))
 
+  def getAV(self, tau):
+    edges = self.mcts.root.edges
+    pi = np.zeros(self.action_size, dtype=np.integer)
+    values = np.zeros(self.action_size, dtype=np.float32)
 
-		
-	def getAV(self, tau):
-		edges = self.mcts.root.edges
-		pi = np.zeros(self.action_size, dtype=np.integer)
-		values = np.zeros(self.action_size, dtype=np.float32)
-		
-		for action, edge in edges:
-			pi[action] = pow(edge.stats['N'], 1/tau)
-			values[action] = edge.stats['Q']
+    for action, edge in edges:
+      pi[action] = pow(edge.stats['N'], 1 / wtau)
+      values[action] = edge.stats['Q']
 
-		pi = pi / (np.sum(pi) * 1.0)
-		return pi, values
+    pi = pi / (np.sum(pi) * 1.0)
+    return pi, values
 
-	def chooseAction(self, pi, values, tau):
+  def chooseAction(self, pi, values, tau):
 		if tau == 0:
 			actions = np.argwhere(pi == max(pi))
 			action = random.choice(actions)[0]
