@@ -6,7 +6,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-from tensorflow.keras.models import Model
+from tensorflow.keras import models
 from tensorflow.keras.layers import *
 from tensorflow.keras import optimizers
 from tensorflow.keras import regularizers
@@ -282,9 +282,9 @@ class Residual_CNN(Gen_Model):
 		vh = self.value_head(x)
 		ph = self.policy_head(x)
 
-		model = Model(inputs=[main_input], outputs=[vh, ph])
+		model = models.Model(inputs=[main_input], outputs=[vh, ph])
 		model.compile(loss={'value_head': 'mean_squared_error', 'policy_head': softmax_cross_entropy_with_logits},
-			optimizer=SGD(lr=self.learning_rate, momentum = config.MOMENTUM),	
+			optimizer = optimizers.SGD(lr=self.learning_rate, momentum = config.MOMENTUM),	
 			loss_weights={'value_head': 0.5, 'policy_head': 0.5}	
 			)
 
