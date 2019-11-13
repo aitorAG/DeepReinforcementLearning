@@ -143,7 +143,6 @@ class Agent():
     lg.logger_mcts.info('------EVALUATING LEAF------')
 
     if done == 0:
-
       value, probs, allowedActions = self.get_preds(leaf.state)
       lg.logger_mcts.info(
           'PREDICTED VALUE FOR %d: %f',

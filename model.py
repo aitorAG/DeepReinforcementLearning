@@ -270,27 +270,25 @@ class Residual_CNN(Gen_Model):
 		return (x)
 
 	def _build_model(self):
+          main_input = Input(shape = self.input_dim, name = 'main_input')
 
-		main_input = Input(shape = self.input_dim, name = 'main_input')
+          x = self.conv_layer(main_input, self.hidden_layers[0]['filters'], self.hidden_layers[0]['kernel_size'])
+          if len(self.hidden_layers) > 1:
+            for h in self.hidden_layers[1:]:
+              x = self.residual_layer(x, h['filters'], h['kernel_size'])
 
-		x = self.conv_layer(main_input, self.hidden_layers[0]['filters'], self.hidden_layers[0]['kernel_size'])
+          vh = self.value_head(x)
+          ph = self.policy_head(x)
 
-		if len(self.hidden_layers) > 1:
-			for h in self.hidden_layers[1:]:
-				x = self.residual_layer(x, h['filters'], h['kernel_size'])
+          model = models.Model(inputs=[main_input], outputs=[vh, ph])
+          model.compile(loss={'value_head': 'mean_squared_error',
+                              'policy_head': softmax_cross_entropy_with_logits},
+                        optimizer = optimizers.SGD(lr=self.learning_rate, momentum = config.MOMENTUM),
+			loss_weights={'value_head': 0.5, 'policy_head': 0.5})
 
-		vh = self.value_head(x)
-		ph = self.policy_head(x)
-
-		model = models.Model(inputs=[main_input], outputs=[vh, ph])
-		model.compile(loss={'value_head': 'mean_squared_error', 'policy_head': softmax_cross_entropy_with_logits},
-			optimizer = optimizers.SGD(lr=self.learning_rate, momentum = config.MOMENTUM),	
-			loss_weights={'value_head': 0.5, 'policy_head': 0.5}	
-			)
-
-		return model
+          return model
 
 	def convertToModelInput(self, state):
 		inputToModel =  state.binary #np.append(state.binary, [(state.playerTurn + 1)/2] * self.input_dim[1] * self.input_dim[2])
-		inputToModel = np.reshape(inputToModel, self.input_dim) 
+		inputToModel = np.reshape(inputToModel, self.input_dim).astype(np.float) 
 		return (inputToModel)
