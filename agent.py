@@ -181,58 +181,57 @@ class Agent():
     return pi, values
 
   def chooseAction(self, pi, values, tau):
-		if tau == 0:
-			actions = np.argwhere(pi == max(pi))
-			action = random.choice(actions)[0]
-		else:
-			action_idx = np.random.multinomial(1, pi)
-			action = np.where(action_idx==1)[0][0]
+    if tau == 0:
+      actions = np.argwhere(pi == max(pi))
+      action = random.choice(actions)[0]
+    else:
+      action_idx = np.random.multinomial(1, pi)
+      action = np.where(action_idx==1)[0][0]
+      
+    value = values[action]
 
-		value = values[action]
+    return action, value
 
-		return action, value
+  def replay(self, ltmemory):
+    lg.logger_mcts.info('******RETRAINING MODEL******')
 
-	def replay(self, ltmemory):
-		lg.logger_mcts.info('******RETRAINING MODEL******')
+    for i in range(config.TRAINING_LOOPS):
+      minibatch = random.sample(ltmemory, min(config.BATCH_SIZE, len(ltmemory)))
 
+      training_states = np.array([self.model.convertToModelInput(row['state']) for row in minibatch])
+      training_targets = {'value_head': np.array([row['value'] for row in minibatch]),
+                          'policy_head': np.array([row['AV'] for row in minibatch])}
 
-		for i in range(config.TRAINING_LOOPS):
-			minibatch = random.sample(ltmemory, min(config.BATCH_SIZE, len(ltmemory)))
+      fit = self.model.fit(training_states, training_targets, epochs=config.EPOCHS, verbose=1, validation_split=0, batch_size = 32)
+      lg.logger_mcts.info('NEW LOSS %s', fit.history)
 
-			training_states = np.array([self.model.convertToModelInput(row['state']) for row in minibatch])
-			training_targets = {'value_head': np.array([row['value'] for row in minibatch])
-								, 'policy_head': np.array([row['AV'] for row in minibatch])} 
+      self.train_overall_loss.append(round(fit.history['loss'][config.EPOCHS - 1],4))
+      self.train_value_loss.append(round(fit.history['value_head_loss'][config.EPOCHS - 1],4))
+      self.train_policy_loss.append(round(fit.history['policy_head_loss'][config.EPOCHS - 1],4))
 
-			fit = self.model.fit(training_states, training_targets, epochs=config.EPOCHS, verbose=1, validation_split=0, batch_size = 32)
-			lg.logger_mcts.info('NEW LOSS %s', fit.history)
+    plt.plot(self.train_overall_loss, 'k')
+    plt.plot(self.train_value_loss, 'k:')
+    plt.plot(self.train_policy_loss, 'k--')
 
-			self.train_overall_loss.append(round(fit.history['loss'][config.EPOCHS - 1],4))
-			self.train_value_loss.append(round(fit.history['value_head_loss'][config.EPOCHS - 1],4)) 
-			self.train_policy_loss.append(round(fit.history['policy_head_loss'][config.EPOCHS - 1],4)) 
+    plt.legend(['train_overall_loss', 'train_value_loss', 'train_policy_loss'], loc='lower left')
 
-		plt.plot(self.train_overall_loss, 'k')
-		plt.plot(self.train_value_loss, 'k:')
-		plt.plot(self.train_policy_loss, 'k--')
+    display.clear_output(wait=True)
+    display.display(pl.gcf())
+    pl.gcf().clear()
+    time.sleep(1.0)
 
-		plt.legend(['train_overall_loss', 'train_value_loss', 'train_policy_loss'], loc='lower left')
+    print('\n')
+    self.model.printWeightAverages()
 
-		display.clear_output(wait=True)
-		display.display(pl.gcf())
-		pl.gcf().clear()
-		time.sleep(1.0)
+  def predict(self, inputToModel):
+    preds = self.model.predict(inputToModel)
+    return preds
 
-		print('\n')
-		self.model.printWeightAverages()
+  def buildMCTS(self, state):
+    lg.logger_mcts.info('****** BUILDING NEW MCTS TREE FOR AGENT %s ******', self.name)
+    self.root = mc.Node(state)
+    self.mcts = mc.MCTS(self.root, self.cpuct)
 
-	def predict(self, inputToModel):
-		preds = self.model.predict(inputToModel)
-		return preds
-
-	def buildMCTS(self, state):
-		lg.logger_mcts.info('****** BUILDING NEW MCTS TREE FOR AGENT %s ******', self.name)
-		self.root = mc.Node(state)
-		self.mcts = mc.MCTS(self.root, self.cpuct)
-
-	def changeRootMCTS(self, state):
-		lg.logger_mcts.info('****** CHANGING ROOT OF MCTS TREE TO %s FOR AGENT %s ******', state.id, self.name)
-		self.mcts.root = self.mcts.tree[state.id]
+  def changeRootMCTS(self, state):
+    lg.logger_mcts.info('****** CHANGING ROOT OF MCTS TREE TO %s FOR AGENT %s ******', state.id, self.name)
+    self.mcts.root = self.mcts.tree[state.id]
