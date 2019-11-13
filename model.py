@@ -6,7 +6,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-from tensorflow.keras import models
+from tensorflow.keras.models import Model
 from tensorflow.keras.layers import *
 from tensorflow.keras import optimizers
 from tensorflow.keras import regularizers
