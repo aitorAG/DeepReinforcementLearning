@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from tensorflow.keras import models
-from tensorflow.keras import layers
+from tensorflow.keras.layers import *
 from tensorflow.keras import optimizers
 from tensorflow.keras import regularizers
 
@@ -271,7 +271,7 @@ class Residual_CNN(Gen_Model):
 
 	def _build_model(self):
 
-		main_input = layers.Input(shape = self.input_dim, name = 'main_input')
+		main_input = Input(shape = self.input_dim, name = 'main_input')
 
 		x = self.conv_layer(main_input, self.hidden_layers[0]['filters'], self.hidden_layers[0]['kernel_size'])
 
