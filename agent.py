@@ -187,7 +187,7 @@ class Agent():
     else:
       action_idx = np.random.multinomial(1, pi)
       action = np.where(action_idx==1)[0][0]
-      
+
     value = values[action]
 
     return action, value

@@ -97,14 +97,11 @@ class Gen_Model():
         channel = 0
         filter = 0
         for i in range(s[2] * s[3]):
-
           sub = fig.add_subplot(s[3], s[2], i + 1)
           sub.imshow(weights[:,:,channel,filter], cmap='coolwarm', clim=(-1, 1), aspect="auto")
           channel = (channel + 1) % s[2]
           filter = (filter + 1) % s[3]
-
       except:
-
         try:
           fig = plt.figure(figsize=(3, len(x)))  # width, height in inches
           for i in range(len(x)):
@@ -113,57 +110,51 @@ class Gen_Model():
               clim = (0, 2)
             else:
               clim = (0, 2)
-	      sub.imshow([x[i]], cmap='coolwarm', clim=clim,aspect="auto")
-	      
-	      plt.show()
+              sub.imshow([x[i]], cmap='coolwarm', clim=clim,aspect="auto")
+              plt.show()
+        except:
+          try:
+            fig = plt.figure(figsize=(3, 3))  # width, height in inches
+            sub = fig.add_subplot(1, 1, 1)
+            sub.imshow(x[0], cmap='coolwarm', clim=(-1, 1),aspect="auto")
+            plt.show()
+          except:
+            pass
 
-	except:
-					try:
-						fig = plt.figure(figsize=(3, 3))  # width, height in inches
-						sub = fig.add_subplot(1, 1, 1)
-						sub.imshow(x[0], cmap='coolwarm', clim=(-1, 1),aspect="auto")
-						
-						plt.show()
+    plt.show()
+    lg.logger_model.info('------------------')
 
-					except:
-						pass
+# class KSchool_Model(Gen_Model):
+#         def __init__(self, reg_const, learning_rate, input_dim,  output_dim):
+#           Gen_Model.__init__(self, reg_const, learning_rate, input_dim, output_dim)
 
-			plt.show()
-				
-		lg.logger_model.info('------------------')
+#           self.model = self._build_model()
+#           self.input_dim = input_dim
+#           self.output_dim = output_dim
+#           self.reg_const = reg_const
+#           self.learning_rate = learning_rate
 
-        
-class KSchool_Model(Gen_Model):
-        def __init__(self, reg_const, learning_rate, input_dim,  output_dim):
-		Gen_Model.__init__(self, reg_const, learning_rate, input_dim, output_dim)
-		self.model = self._build_model()
-                self.input_dim = input_dim
-                self.output_dim = output_dim
-                self.reg_const = reg_const
-                self.learning_rate = learning_rate
+#         def _build_model(self):
+#           main_input = Input(shape = self.input_dim, name = 'main_input')
+#           x = ....
+#           vh = capas(x)
+#           vh = Dense(1,
+#                      use_bias=False,
+#                      activation='tanh',
+#                      kernel_regularizer=regularizers.l2(self.reg_const),
+#                      name = 'value_head')(vh)
+#           ph = capas(x)  # quizas otras capas diferentes a vh
+#           ph = Dense(self.output_dim,
+#                      use_bias=False,
+#                      activation='linear',
+#                      kernel_regularizer=regularizers.l2(self.reg_const),
+# 	             name = 'policy_head')(ph)
 
-        def _build_model(self):
-      		main_input = Input(shape = self.input_dim, name = 'main_input')
-                x = ....
-                vh = capas(x)
-                vh = Dense(1,
-                           use_bias=False,
-                           activation='tanh',
-                           kernel_regularizer=regularizers.l2(self.reg_const),
-                           name = 'value_head')(vh)
-                ph = capas(x)  # quizas otras capas diferentes a vh
-                ph = Dense(self.output_dim,
-                           use_bias=False,
-                           activation='linear',
-                           kernel_regularizer=regularizers.l2(self.reg_const),
-	                   name = 'policy_head'
-			)(ph)
-
-		model = Model(inputs=[main_input], outputs=[vh, ph])
-		model.compile(loss={'value_head': 'mean_squared_error',
-                                    'policy_head': softmax_cross_entropy_with_logits},
-			      optimizer=....,  # Adam, RMSprop, etc...
-			      loss_weights={'value_head': 0.5, 'policy_head': 0.5})
+# 	  model = Model(inputs=[main_input], outputs=[vh, ph])
+# 	  model.compile(loss={'value_head': 'mean_squared_error',
+#                               'policy_head': softmax_cross_entropy_with_logits},
+# 			optimizer=....,  # Adam, RMSprop, etc...
+# 			loss_weights={'value_head': 0.5, 'policy_head': 0.5})
 
 
 class Residual_CNN(Gen_Model):
